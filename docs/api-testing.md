@@ -5,7 +5,21 @@ testing each one. **Every request and response below was captured from a running
 API** — nothing here is illustrative or invented.
 
 Tested against the `http` launch profile at `http://localhost:5139`, with the store in its seeded
-state at the start of the run. See [how-to-run.md](how-to-run.md) for starting the API.
+state at the start of the run.
+
+> **The `localhost` links in this file are not public URLs.** This API is not hosted anywhere.
+> `localhost` means "this computer", so those links do nothing until you start the API on your own
+> machine. Two commands do it:
+>
+> ```bash
+> git clone https://github.com/jdsaire/c5-backend-api-techhive.git
+> cd c5-backend-api-techhive
+> dotnet run --project src/UserManagementAPI --launch-profile http
+> ```
+>
+> Then <http://localhost:5139/swagger> opens the interactive Swagger UI, where you can send every
+> request below yourself and compare what you get against what is recorded here. Full instructions
+> are in [how-to-run.md](how-to-run.md).
 
 ---
 

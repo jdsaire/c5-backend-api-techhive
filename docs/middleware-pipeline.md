@@ -10,6 +10,20 @@ This file describes the three middleware components that answer those requiremen
 they run in, and the results of testing them. **Every response and log line quoted here was
 captured from a running instance.**
 
+> **The `localhost` links in this file are not public URLs.** This API is not hosted anywhere.
+> `localhost` means "this computer", so those links do nothing until you start the API on your own
+> machine. Two commands do it:
+>
+> ```bash
+> git clone https://github.com/jdsaire/c5-backend-api-techhive.git
+> cd c5-backend-api-techhive
+> dotnet run --project src/UserManagementAPI --launch-profile http
+> ```
+>
+> Then <http://localhost:5139/swagger> opens the interactive Swagger UI, where you can send every
+> request below yourself and compare what you get against what is recorded here. Full instructions
+> are in [how-to-run.md](how-to-run.md).
+
 > **The token check in this API is simulated.** It compares a bearer token against a value in a
 > configuration file. It verifies no signature, issues no tokens, and has no expiry. It is not
 > production authentication and this project does not claim the API is secure. The full statement
