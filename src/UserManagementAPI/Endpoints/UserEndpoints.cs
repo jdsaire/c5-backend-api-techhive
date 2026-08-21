@@ -24,10 +24,16 @@ public static class UserEndpoints
              .WithName("GetUsers")
              .WithSummary("Retrieve the list of users.");
 
-        // Retrieve a single user by id.
-        users.MapGet("/{id:int}", (int id, UserStore store) => store.GetById(id))
+        // Retrieve a single user by id. Answered with 404 if no such user is held.
+        users.MapGet("/{id:int}", (int id, UserStore store) =>
+             {
+                 var user = store.GetById(id);
+                 return user is null ? NoSuchUser(id) : Results.Ok(user);
+             })
              .WithName("GetUserById")
-             .WithSummary("Retrieve a single user by id.");
+             .WithSummary("Retrieve a single user by id.")
+             .Produces<User>(StatusCodes.Status200OK)
+             .Produces(StatusCodes.Status404NotFound);
 
         // Add a new user to the directory. Rejected with 400 if the submitted record is invalid.
         users.MapPost("", (User user, UserStore store) =>
@@ -53,22 +59,32 @@ public static class UserEndpoints
                      return Results.ValidationProblem(errors);
                  }
 
-                 return Results.Ok(store.Update(id, user));
+                 var updated = store.Update(id, user);
+                 return updated is null ? NoSuchUser(id) : Results.Ok(updated);
              })
              .WithName("UpdateUser")
              .WithSummary("Update an existing user's details.")
              .Produces<User>(StatusCodes.Status200OK)
-             .ProducesValidationProblem();
+             .ProducesValidationProblem()
+             .Produces(StatusCodes.Status404NotFound);
 
-        // Remove a user from the directory.
+        // Remove a user from the directory. Answered with 404 if no such user is held.
         users.MapDelete("/{id:int}", (int id, UserStore store) =>
              {
-                 store.Delete(id);
-                 return Results.NoContent();
+                 return store.Delete(id) ? Results.NoContent() : NoSuchUser(id);
              })
              .WithName("DeleteUser")
-             .WithSummary("Remove a user by id.");
+             .WithSummary("Remove a user by id.")
+             .Produces(StatusCodes.Status204NoContent)
+             .Produces(StatusCodes.Status404NotFound);
 
         return routes;
     }
+
+    /// <summary>
+    /// The single 404 answer used by every route that addresses one user by id, so a caller sees
+    /// the same shape and the same wording whichever verb they used.
+    /// </summary>
+    private static IResult NoSuchUser(int id) =>
+        Results.NotFound(new { error = $"No user with id {id} was found." });
 }
