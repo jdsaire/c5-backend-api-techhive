@@ -1,0 +1,7 @@
+@UserManagementAPI_HostAddress = http://localhost:5139
+
+### Fetch the OpenAPI document that describes this API.
+GET {{UserManagementAPI_HostAddress}}/openapi/v1.json
+Accept: application/json
+
+###
