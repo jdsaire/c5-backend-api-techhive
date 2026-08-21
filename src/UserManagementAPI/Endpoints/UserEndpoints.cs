@@ -42,6 +42,15 @@ public static class UserEndpoints
              .WithName("UpdateUser")
              .WithSummary("Update an existing user's details.");
 
+        // Remove a user from the directory.
+        users.MapDelete("/{id:int}", (int id, UserStore store) =>
+             {
+                 store.Delete(id);
+                 return Results.NoContent();
+             })
+             .WithName("DeleteUser")
+             .WithSummary("Remove a user by id.");
+
         return routes;
     }
 }
