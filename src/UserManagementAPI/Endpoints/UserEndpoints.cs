@@ -37,6 +37,11 @@ public static class UserEndpoints
              .WithName("CreateUser")
              .WithSummary("Add a new user.");
 
+        // Update an existing user's details.
+        users.MapPut("/{id:int}", (int id, User user, UserStore store) => store.Update(id, user))
+             .WithName("UpdateUser")
+             .WithSummary("Update an existing user's details.");
+
         return routes;
     }
 }
