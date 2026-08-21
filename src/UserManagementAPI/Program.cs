@@ -1,3 +1,4 @@
+using UserManagementAPI.Endpoints;
 using UserManagementAPI.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,5 +22,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// All user routes are registered from Endpoints/UserEndpoints.cs.
+app.MapUserEndpoints();
 
 app.Run();
