@@ -1,5 +1,6 @@
 using UserManagementAPI.Models;
 using UserManagementAPI.Storage;
+using UserManagementAPI.Validation;
 
 namespace UserManagementAPI.Endpoints;
 
@@ -28,19 +29,36 @@ public static class UserEndpoints
              .WithName("GetUserById")
              .WithSummary("Retrieve a single user by id.");
 
-        // Add a new user to the directory.
+        // Add a new user to the directory. Rejected with 400 if the submitted record is invalid.
         users.MapPost("", (User user, UserStore store) =>
              {
+                 if (!UserValidator.TryValidate(user, out var errors))
+                 {
+                     return Results.ValidationProblem(errors);
+                 }
+
                  var created = store.Add(user);
                  return Results.Created($"/users/{created.Id}", created);
              })
              .WithName("CreateUser")
-             .WithSummary("Add a new user.");
+             .WithSummary("Add a new user.")
+             .Produces<User>(StatusCodes.Status201Created)
+             .ProducesValidationProblem();
 
-        // Update an existing user's details.
-        users.MapPut("/{id:int}", (int id, User user, UserStore store) => store.Update(id, user))
+        // Update an existing user's details. Rejected with 400 if the submitted record is invalid.
+        users.MapPut("/{id:int}", (int id, User user, UserStore store) =>
+             {
+                 if (!UserValidator.TryValidate(user, out var errors))
+                 {
+                     return Results.ValidationProblem(errors);
+                 }
+
+                 return Results.Ok(store.Update(id, user));
+             })
              .WithName("UpdateUser")
-             .WithSummary("Update an existing user's details.");
+             .WithSummary("Update an existing user's details.")
+             .Produces<User>(StatusCodes.Status200OK)
+             .ProducesValidationProblem();
 
         // Remove a user from the directory.
         users.MapDelete("/{id:int}", (int id, UserStore store) =>
