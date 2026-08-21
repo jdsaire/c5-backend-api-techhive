@@ -1,0 +1,38 @@
+@UserManagementAPI_HostAddress = http://localhost:5139
+
+### Retrieve the list of users.
+GET {{UserManagementAPI_HostAddress}}/users
+Accept: application/json
+
+### Retrieve a single user by id.
+GET {{UserManagementAPI_HostAddress}}/users/2
+Accept: application/json
+
+### Add a new user.
+POST {{UserManagementAPI_HostAddress}}/users
+Content-Type: application/json
+
+{
+  "name": "Priya Nair",
+  "email": "priya.nair@techhive.example",
+  "department": "IT"
+}
+
+### Update an existing user's details.
+PUT {{UserManagementAPI_HostAddress}}/users/2
+Content-Type: application/json
+
+{
+  "name": "Marcus Boateng",
+  "email": "marcus.boateng@techhive.example",
+  "department": "Engineering"
+}
+
+### Remove a user by id.
+DELETE {{UserManagementAPI_HostAddress}}/users/4
+
+### Fetch the OpenAPI document that describes this API.
+GET {{UserManagementAPI_HostAddress}}/openapi/v1.json
+Accept: application/json
+
+###
