@@ -1,3 +1,4 @@
+using UserManagementAPI.Models;
 using UserManagementAPI.Storage;
 
 namespace UserManagementAPI.Endpoints;
@@ -26,6 +27,15 @@ public static class UserEndpoints
         users.MapGet("/{id:int}", (int id, UserStore store) => store.GetById(id))
              .WithName("GetUserById")
              .WithSummary("Retrieve a single user by id.");
+
+        // Add a new user to the directory.
+        users.MapPost("", (User user, UserStore store) =>
+             {
+                 var created = store.Add(user);
+                 return Results.Created($"/users/{created.Id}", created);
+             })
+             .WithName("CreateUser")
+             .WithSummary("Add a new user.");
 
         return routes;
     }
