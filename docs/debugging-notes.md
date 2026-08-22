@@ -56,6 +56,10 @@ the mistakes this API actually receives: a bare word, a missing `@`, a domain wi
 | Same invalid body sent to `PUT /users/2` | `400` | all three fields reported |
 | A valid record | `201` | the created user |
 
+Every row above was re-run after the later hardening pass and still behaves exactly as recorded.
+A body that is absent altogether is a different case and is covered
+[further down](#the-absent-body--added-after-activity-3).
+
 The `{}` case is worth calling out. The fields are plain strings that default to empty, so a body
 with nothing in it deserializes into an empty user rather than failing. Without the validator that
 empty record would have been stored. With it, the caller gets:
@@ -120,6 +124,10 @@ Two shapes appear in this API, and the split is deliberate:
   per-field detail that a single message cannot express.
 - **`404`, `401`, and `500`** use a flat `{ "error": "..." }`, because each is a single statement
   about the request as a whole. This is also the shape the Activity 3 middleware returns.
+
+The dividing line is per-field detail, not the status code. A `400` for an *absent* body is a
+single statement — there are no fields to report — so it takes the flat shape too. That case was
+added later and is described [below](#the-absent-body--added-after-activity-3).
 
 ---
 
@@ -199,6 +207,54 @@ no handler frame on the stack yet, so no `catch` in this project's code can see 
 **Where it is fixed.** Activity 3's error-handling middleware sits outside the routing layer and
 does catch it. It is recorded here because this is where it was found, and the fix and its test
 results are in [middleware-pipeline.md](middleware-pipeline.md).
+
+---
+
+## The absent body — added after Activity 3
+
+A later hardening pass looked at a case none of the bugs above covered: a request that carries no
+body at all, or the literal JSON value `null`.
+
+**What was expected.** That `UserValidator.TryValidate` would be handed a null record and throw,
+because it reads `user.Name` without checking. The planned fix was an explicit null check in the
+create and update handlers, ahead of the validator.
+
+**What testing actually found.** No such crash existed, and the planned check would never have
+run. Because the handlers declared a non-nullable `User` parameter, the framework rejected the
+request while binding that parameter — before the handler was entered — and the log recorded:
+
+```
+Microsoft.AspNetCore.Http.BadHttpRequestException: Implicit body inferred for parameter "user"
+but no body was provided. Did you mean to use a Service instead?
+```
+
+The error-handling middleware caught it and answered `400` with the same
+`The request could not be read...` message that truncated JSON produces. Safe, but misleading: a
+body that was never sent is not a body that could not be parsed, and a caller debugging their
+client is told to check their JSON syntax when there is no JSON to check.
+
+**What changed.** The body parameter on create and update is now declared nullable, so a missing
+or `null` body reaches the handler instead of failing during binding, and an explicit check
+answers it directly:
+
+| Request | Status | Response |
+|---|---|---|
+| `POST /users` with `-d 'null'` | `400` | `{"error":"A user record is required in the request body."}` |
+| `POST /users` with an empty body | `400` | `{"error":"A user record is required in the request body."}` |
+| `PUT /users/2` with `-d 'null'` | `400` | `{"error":"A user record is required in the request body."}` |
+| `PUT /users/2` with an empty body | `400` | `{"error":"A user record is required in the request body."}` |
+| `POST /users` with truncated JSON | `400` | `{"error":"The request could not be read..."}` — unchanged |
+| `POST /users` with a wrong field type | `400` | `{"error":"The request could not be read..."}` — unchanged |
+| `POST /users` with a valid record | `201` | the created user — unchanged |
+
+The two problems now read differently, which is the whole benefit. Nothing about the malformed-body
+path changed.
+
+**Worth keeping in mind.** Minimal API has no equivalent of the automatic model-state validation
+that `[ApiController]` runs in a controller-based project. Where that convenience exists, a null
+body is checked for you; here, every check on a submitted body is one this project writes. The
+idea for this check came from reading a controller-based solution to the same assignment — see
+[references.md](references.md).
 
 ---
 

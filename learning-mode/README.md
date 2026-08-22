@@ -13,6 +13,7 @@ Read them in order. Each one assumes the one before it.
 | [01-Building-the-CRUD-Surface.md](01-Building-the-CRUD-Surface.md) | What an API is, what CRUD means, and how the five endpoints were built. |
 | [02-Validation-and-Error-Handling.md](02-Validation-and-Error-Handling.md) | Why the first version was wrong in ways that looked right, and what fixing it involved. |
 | [03-Middleware-and-the-Pipeline.md](03-Middleware-and-the-Pipeline.md) | What middleware is, the three components added here, and why their order matters. |
+| [04-Learning-From-a-Peer-Review.md](04-Learning-From-a-Peer-Review.md) | Reading another student's solution to the same brief: timing side-channels, and where a framework stops checking things for you. |
 | [Glossary.md](Glossary.md) | Every term used across these files, defined in plain language. |
 
 Keep the [Glossary](Glossary.md) open beside them. Terms are defined there rather than repeatedly

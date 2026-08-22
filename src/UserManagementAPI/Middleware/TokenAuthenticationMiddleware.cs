@@ -1,3 +1,6 @@
+using System.Security.Cryptography;
+using System.Text;
+
 namespace UserManagementAPI.Middleware;
 
 // ---------------------------------------------------------------------------------------------
@@ -5,12 +8,16 @@ namespace UserManagementAPI.Middleware;
 //
 //  What it does:
 //      Reads the Authorization header, requires the "Bearer " scheme, and compares the token
-//      that follows against a single fixed value read from configuration. If they match, the
-//      request continues. If they do not, the request is answered with 401.
+//      that follows against a single fixed value read from configuration. The comparison is
+//      constant-time: both values are hashed with SHA-256 and the two digests are compared with
+//      CryptographicOperations.FixedTimeEquals, so how long the check takes reveals neither the
+//      content nor the length of the configured value. If they match, the request continues. If
+//      they do not, the request is answered with 401.
 //
 //  What it does NOT do:
-//      - It does not verify a cryptographic signature. The token is a plain string compared for
-//        equality; nothing proves who issued it.
+//      - It does not verify a cryptographic signature. Hashing the token before comparing it is
+//        not a signature check — it makes the comparison timing-safe and nothing more. The token
+//        is still a plain string, and nothing proves who issued it.
 //      - It does not issue tokens. There is no login endpoint and no way to obtain a token other
 //        than reading the configured value.
 //      - It does not handle expiry. The configured token is valid forever.
@@ -18,6 +25,10 @@ namespace UserManagementAPI.Middleware;
 //        who the caller is, and no user, role, or claim is attached to the request.
 //      - It does not protect the token. The value lives in appsettings.json in plain text, in
 //        version control. That is not secret storage.
+//
+//  Constant-time comparison closes one specific weakness: the duration of the check no longer
+//  tells a caller how many leading characters they guessed correctly. It does not make this
+//  authentication. Every limitation listed above is exactly as true as it was before.
 //
 //  This exists to demonstrate where authentication sits in a middleware pipeline and what a
 //  rejected request looks like. It must not be used to protect anything real. Replacing it with
@@ -91,8 +102,9 @@ public class TokenAuthenticationMiddleware(
 
         var suppliedToken = authorizationHeader[BearerPrefix.Length..].Trim();
 
-        // A plain string comparison. Nothing here validates a signature or an expiry date.
-        if (!string.Equals(suppliedToken, expectedToken, StringComparison.Ordinal))
+        // A constant-time comparison of two plain strings. Nothing here validates a signature or
+        // an expiry date.
+        if (!TokensMatch(suppliedToken, expectedToken))
         {
             logger.LogWarning(
                 "Rejected {Method} {Path}: the supplied token did not match the configured value.",
@@ -103,6 +115,36 @@ public class TokenAuthenticationMiddleware(
         }
 
         await next(context);
+    }
+
+    /// <summary>
+    /// Compares the supplied token against the configured one in constant time, so that how long
+    /// the comparison takes says nothing about the configured value.
+    /// </summary>
+    /// <remarks>
+    /// An ordinary string comparison stops at the first character that differs. A token sharing
+    /// more leading characters with the configured value therefore takes measurably longer to
+    /// reject than one that differs immediately. Repeated often enough, that difference lets a
+    /// caller recover the token one character at a time, without the API ever telling them they
+    /// were close.
+    ///
+    /// Hashing before comparing removes a second leak. <c>FixedTimeEquals</c> returns immediately
+    /// when its two inputs differ in length, so comparing the raw token bytes would still
+    /// disclose how long the configured token is. SHA-256 digests are always 32 bytes, so neither
+    /// the content nor the length of either token can affect the time taken.
+    ///
+    /// This makes the comparison safe. It does not make the check authentication — see the file
+    /// header for everything it still does not do.
+    /// </remarks>
+    private static bool TokensMatch(string suppliedToken, string expectedToken)
+    {
+        Span<byte> suppliedDigest = stackalloc byte[SHA256.HashSizeInBytes];
+        Span<byte> expectedDigest = stackalloc byte[SHA256.HashSizeInBytes];
+
+        SHA256.HashData(Encoding.UTF8.GetBytes(suppliedToken), suppliedDigest);
+        SHA256.HashData(Encoding.UTF8.GetBytes(expectedToken), expectedDigest);
+
+        return CryptographicOperations.FixedTimeEquals(suppliedDigest, expectedDigest);
     }
 
     /// <summary>True when the path is documentation and is served without a token.</summary>
