@@ -64,10 +64,20 @@ public static class UserEndpoints
              .Produces(StatusCodes.Status500InternalServerError);
 
         // Add a new user to the directory. Rejected with 400 if the submitted record is invalid.
-        users.MapPost("", (User user, UserStore store, ILoggerFactory logs) =>
+        users.MapPost("", (User? user, UserStore store, ILoggerFactory logs) =>
              {
                  try
                  {
+                     // The body is bound as nullable so that a missing or literal-null body
+                     // arrives here instead of failing during parameter binding. Minimal API has
+                     // no equivalent of the automatic ModelState check that [ApiController] runs
+                     // in a controller-based project, so the only checks a submitted body gets
+                     // are the ones written in this file and in UserValidator.
+                     if (user is null)
+                     {
+                         return NoBodySubmitted();
+                     }
+
                      if (!UserValidator.TryValidate(user, out var errors))
                      {
                          return Results.ValidationProblem(errors);
@@ -88,10 +98,17 @@ public static class UserEndpoints
              .Produces(StatusCodes.Status500InternalServerError);
 
         // Update an existing user's details. Rejected with 400 if the submitted record is invalid.
-        users.MapPut("/{id:int}", (int id, User user, UserStore store, ILoggerFactory logs) =>
+        users.MapPut("/{id:int}", (int id, User? user, UserStore store, ILoggerFactory logs) =>
              {
                  try
                  {
+                     // Bound as nullable for the same reason as the create handler above: Minimal
+                     // API leaves this check to us.
+                     if (user is null)
+                     {
+                         return NoBodySubmitted();
+                     }
+
                      if (!UserValidator.TryValidate(user, out var errors))
                      {
                          return Results.ValidationProblem(errors);
@@ -132,6 +149,18 @@ public static class UserEndpoints
 
         return routes;
     }
+
+    /// <summary>
+    /// The single 400 answer used when a request arrives with no body at all.
+    /// </summary>
+    /// <remarks>
+    /// This is a flat <c>{ "error": ... }</c> rather than the validation problem format used for
+    /// field-level failures, and deliberately so. The problem format exists to carry one entry
+    /// per invalid field; a body that was never sent has no fields to report. It is a single
+    /// statement, so it takes the same shape as the API's other single-statement errors.
+    /// </remarks>
+    private static IResult NoBodySubmitted() =>
+        Results.BadRequest(new { error = "A user record is required in the request body." });
 
     /// <summary>
     /// The single 404 answer used by every route that addresses one user by id, so a caller sees
