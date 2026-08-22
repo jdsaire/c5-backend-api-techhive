@@ -15,6 +15,7 @@ someone who has not worked with web APIs before, see [../learning-mode/README.md
 | [debugging-notes.md](debugging-notes.md) | Each bug that was reported or found, what the code did before, what it does now, and the edge cases run to confirm the fix. |
 | [middleware-pipeline.md](middleware-pipeline.md) | The three middleware components, the order they run in, why that order was chosen, and the test results. |
 | [grading-criteria.md](grading-criteria.md) | The assignment's criteria, recorded for reference. It records them; it does not answer them. |
+| [references.md](references.md) | What this project took from another student's submission of the same assignment, and what it deliberately did not. |
 
 ## A note on the evidence in these files
 
