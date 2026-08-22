@@ -26,8 +26,9 @@ middleware logs its own rejections for that reason. This and the rest of the rea
 [../../../docs/middleware-pipeline.md](../../../docs/middleware-pipeline.md).
 
 > **The token check is simulated.** It compares a bearer token against a fixed configured value.
-> It verifies no signature, issues no tokens, and has no expiry. It is not production
-> authentication. The full statement is at the top of `TokenAuthenticationMiddleware.cs`.
+> The comparison is constant-time, but the check still verifies no signature, issues no tokens,
+> and has no expiry. It is not production authentication. The full statement is at the top of
+> `TokenAuthenticationMiddleware.cs`.
 
 ## Related
 

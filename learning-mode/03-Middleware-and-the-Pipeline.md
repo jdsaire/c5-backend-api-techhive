@@ -82,11 +82,13 @@ and the only fix is something positioned further out.
 ### Authentication
 
 Requires an `Authorization: Bearer <token>` header, compares the token to a configured value, and
-answers `401 Unauthorized` if it is missing or wrong.
+answers `401 Unauthorized` if it is missing or wrong. The comparison is done in a way that takes
+the same amount of time whether the supplied token is nearly right or nothing like it —
+[chapter 04](04-Learning-From-a-Peer-Review.md) explains why that matters and how it works.
 
 > ### This check is simulated, and that matters
 >
-> It compares a string to another string. It verifies **no cryptographic signature**, so nothing
+> It compares one fixed string to another. It verifies **no cryptographic signature**, so nothing
 > proves who issued the token. It **issues no tokens** — there is no login. It has **no expiry**.
 > It **identifies no user** — a valid token opens everything and does not say who is calling. And
 > the token sits in a configuration file committed to a public repository, so it is **not a

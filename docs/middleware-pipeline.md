@@ -25,8 +25,9 @@ captured from a running instance.**
 > are in [how-to-run.md](how-to-run.md).
 
 > **The token check in this API is simulated.** It compares a bearer token against a value in a
-> configuration file. It verifies no signature, issues no tokens, and has no expiry. It is not
-> production authentication and this project does not claim the API is secure. The full statement
+> configuration file. The comparison is constant-time, which closes one specific weakness and
+> nothing more: the check still verifies no signature, issues no tokens, and has no expiry. It is
+> not production authentication and this project does not claim the API is secure. The full statement
 > of what it does and does not do is at the top of
 > [`TokenAuthenticationMiddleware.cs`](../src/UserManagementAPI/Middleware/TokenAuthenticationMiddleware.cs).
 
@@ -57,6 +58,11 @@ The two cases are separated on purpose. An unreadable body is the caller's mista
 fault, so it keeps its `400` and is logged as a warning. Blanket-converting it to `500` would tell
 the caller the server broke when it did not.
 
+A body that is *unreadable* is not the same as a body that is *absent*. Truncated JSON and fields
+of the wrong type still reach this middleware. A missing or literal-`null` body no longer does —
+the create and update handlers check for it themselves and answer with a message about the body
+being absent. See [debugging-notes.md](debugging-notes.md#the-absent-body--added-after-activity-3).
+
 No exception detail is ever sent to the caller. The stack trace goes to the log.
 
 ### 2. Authentication — [`TokenAuthenticationMiddleware.cs`](../src/UserManagementAPI/Middleware/TokenAuthenticationMiddleware.cs)
@@ -65,7 +71,15 @@ Requires an `Authorization: Bearer <token>` header whose token matches the value
 `Authentication:Token` in [`appsettings.json`](../src/UserManagementAPI/appsettings.json). Anything
 else is answered `401 Unauthorized` with a `WWW-Authenticate: Bearer` header.
 
-Two behaviors worth stating:
+Three behaviors worth stating:
+
+- **The comparison is constant-time.** Both the supplied and the configured token are hashed with
+  SHA-256 and the two digests are compared with `CryptographicOperations.FixedTimeEquals`. An
+  ordinary string comparison stops at the first differing character, so how long it takes
+  correlates with how many leading characters were correct — information a caller can measure even
+  though the API never tells them how close they were. Hashing first also keeps the configured
+  token's *length* out of the timing, because digests are always 32 bytes. Why this is done this
+  way, and where the idea came from, is in [references.md](references.md).
 
 - **It fails closed.** If no token is configured at all, every request is rejected and the reason
   is logged. A missing configuration value must never mean "let everything through."
@@ -157,7 +171,8 @@ middleware is a second layer. Both are needed, and the test results show why:
 | Where the failure happens | Caught by | Response |
 |---|---|---|
 | Inside a route handler | The handler's own `try`/`catch` | `500` — `An unexpected error occurred while processing the user request.` |
-| Before a handler is entered — e.g. deserializing the body | The error-handling middleware | `400` — `The request could not be read...` |
+| Before a handler is entered — e.g. deserializing a malformed body | The error-handling middleware | `400` — `The request could not be read...` |
+| A missing or `null` body on create or update | The handler's own null check | `400` — `A user record is required in the request body.` |
 
 The second row is the case the endpoint layer provably cannot reach. Deserializing the request
 body into the handler's `User` parameter happens before the handler is entered, so there is no
@@ -182,9 +197,15 @@ Run against `http://localhost:5139` with the configured token
 | `GET /users` with no `Authorization` header | **401** | `{"error":"An Authorization header with a bearer token is required."}` |
 | `GET /users` with `Authorization: Basic abc123` | **401** | `{"error":"The Authorization header must use the Bearer scheme."}` |
 | `GET /users` with `Authorization: Bearer wrong-token` | **401** | `{"error":"The supplied token is not valid."}` |
+| `GET /users` with a wrong token of the **same length** as the configured one | **401** | `{"error":"The supplied token is not valid."}` |
 | `GET /users` with the correct bearer token | **200** | the user list |
 
-All three rejections included the header `WWW-Authenticate: Bearer`.
+All four rejections included the header `WWW-Authenticate: Bearer`.
+
+The last two rejections are the point of the constant-time comparison. A wrong token that matches
+the configured value's length, and one that does not, produce the same status, the same body, and
+the same header — and now also take the same time to reject. The response never said how close an
+attempt was; previously the duration did.
 
 ### Documentation paths, sent with no token
 
@@ -202,7 +223,13 @@ Exempt as designed, so the documentation stays readable in a browser.
 | `GET /users/500` — a throw temporarily added inside the handler | **500** | `{"error":"An unexpected error occurred while processing the user request."}` |
 | `POST /users` with truncated JSON `{"name": "Sam",` | **400** | `{"error":"The request could not be read..."}` |
 | `POST /users` with `{"name": 42, ...}` — wrong field type | **400** | `{"error":"The request could not be read..."}` |
+| `POST /users` with a literal `null` body | **400** | `{"error":"A user record is required in the request body."}` |
+| `POST /users` with an empty body | **400** | `{"error":"A user record is required in the request body."}` |
+| `PUT /users/2` with a literal `null` or empty body | **400** | `{"error":"A user record is required in the request body."}` |
 | `GET /users` immediately afterwards | **200** | the user list — the process stayed up |
+
+The two `could not be read` rows are answered by this middleware. The absent-body rows are
+answered by the handlers themselves, which is why the wording differs.
 
 The exception was triggered by temporarily adding this line to the top of the `GET /users/{id}`
 handler:

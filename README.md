@@ -133,6 +133,10 @@ a configuration file. It verifies no cryptographic signature, issues no tokens, 
 identifies no user — a valid token grants access to everything. The token itself is committed to
 this repository in plain text, which means it is not a secret.
 
+The comparison itself is constant-time — both values are hashed and the digests compared — so the
+time a rejection takes reveals nothing about the configured token. That closes one specific
+weakness. It changes nothing else in the paragraph above.
+
 It exists to demonstrate where authentication belongs in a middleware pipeline and what a rejected
 request looks like. **It does not make this API secure, and this project makes no such claim.**
 The full statement is at the top of
