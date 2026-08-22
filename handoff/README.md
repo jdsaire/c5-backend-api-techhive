@@ -10,6 +10,7 @@ where the two differed, and why.
 | Version | What it covers |
 |---|---|
 | [v1/](v1/README.md) | The first and complete build: the CRUD endpoints, the debugging pass, and the middleware pipeline. |
+| [v2/](v2/README.md) | A hardening pass on the finished build: a constant-time token comparison and a working check for an absent request body. |
 
 ## Why this exists
 
